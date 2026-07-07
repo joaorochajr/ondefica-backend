@@ -28,6 +28,17 @@ async function criarEvento(req, res) {
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
         }
 
+        
+        const eventoDuplicado = await Evento.findOne({
+            descricao: descricao,
+            administradores: req.user.id
+        });
+    
+        if (eventoDuplicado) {
+            return res.status(409).json({ 
+                message: 'Você já possui um evento cadastrado com este nome.' 
+            });
+        }
         const novoEvento = await Evento.create({
             descricao, data_inicio, data_fim, latitude, longitude,
             administradores: administradoresIds
@@ -126,6 +137,18 @@ async function atualizarEvento(req, res) {
             
             const idsColaboradores = usuariosDb.map(u => u._id.toString());
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
+        }
+
+        const eventoDuplicado = await Evento.findOne({
+            descricao: descricao,
+            administradores: req.user.id,
+            _id: { $ne: req.params.id }
+        });
+    
+        if (eventoDuplicado) {
+            return res.status(409).json({ 
+                message: 'Você já possui um evento cadastrado com este nome.' 
+            });
         }
 
         const eventoAtualizado = await Evento.findByIdAndUpdate(

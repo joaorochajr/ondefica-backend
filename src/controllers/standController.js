@@ -4,9 +4,6 @@ const Evento = require('../models/Evento')
 // POST /stands
 async function criarStand(req, res) {
     try {
-
-        console.log("CABEÇALHO DA REQUISIÇÃO:", req.headers['content-type']);
-        console.log("ARQUIVO RECEBIDO PELO MULTER:", req.file);
         const {
             nome,
             descricao,
