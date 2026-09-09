@@ -19,21 +19,21 @@ async function criarEvento(req, res) {
             // Busca no banco os usuários que têm os e-mails enviados
             const usuariosDb = await Usuario.find({ email: { $in: colaboradores } });
             const emailsDb = usuariosDb.map(u => u.email);
-            
+
             // Separa quem não foi encontrado
             emailsNaoEncontrados = colaboradores.filter(email => !emailsDb.includes(email));
-            
+
             // Junta o ID do criador com os IDs dos colaboradores encontrados (sem repetir)
             const idsColaboradores = usuariosDb.map(u => u._id.toString());
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
         }
 
-        
+
         const eventoDuplicado = await Evento.findOne({
             descricao: descricao,
             administradores: req.user.id
         });
-    
+
         if (eventoDuplicado) {
             return res.status(409).json({ 
                 message: 'Você já possui um evento cadastrado com este nome.' 
@@ -103,7 +103,7 @@ async function buscarEventoPorId(req, res) {
             model: 'Usuario',
             select: 'email'
         });
-        
+
         if (!evento) return res.status(404).json({ message: 'Evento não encontrado' });
         res.json(evento);
     } catch (error) {
@@ -117,7 +117,7 @@ async function atualizarEvento(req, res) {
         if (!req.user) return res.status(401).json({ message: 'Não autenticado' });
 
         const { descricao, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
-        
+
         const eventoExistente = await Evento.findById(req.params.id);
         if (!eventoExistente) return res.status(404).json({ message: 'Evento não encontrado' });
 
@@ -132,9 +132,9 @@ async function atualizarEvento(req, res) {
         if (colaboradores && colaboradores.length > 0) {
             const usuariosDb = await Usuario.find({ email: { $in: colaboradores } });
             const emailsDb = usuariosDb.map(u => u.email);
-            
+
             emailsNaoEncontrados = colaboradores.filter(email => !emailsDb.includes(email));
-            
+
             const idsColaboradores = usuariosDb.map(u => u._id.toString());
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
         }
@@ -144,7 +144,7 @@ async function atualizarEvento(req, res) {
             administradores: req.user.id,
             _id: { $ne: req.params.id }
         });
-    
+
         if (eventoDuplicado) {
             return res.status(409).json({ 
                 message: 'Você já possui um evento cadastrado com este nome.' 
