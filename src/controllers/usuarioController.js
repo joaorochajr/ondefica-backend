@@ -13,6 +13,19 @@ function gerarTokenComExpiracao() {
     return { token, expira }
 }
 
+// Escapa caracteres especiais de regex (o e-mail pode ter '.', '+', etc.)
+function escaparRegex(texto) {
+    return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Monta um filtro de e-mail que ignora maiúsculas/minúsculas e espaços,
+// então funciona mesmo com cadastros antigos salvos com grafia diferente
+// (sem precisar rodar nenhuma migração no banco).
+function filtroEmail(email) {
+    const emailLimpo = escaparRegex((email || '').trim())
+    return { email: { $regex: `^${emailLimpo}$`, $options: 'i' } }
+}
+
 
 async function criarUsuario(req, res) {
     try {
@@ -25,7 +38,7 @@ async function criarUsuario(req, res) {
             })
         }
 
-        const existente = await Usuario.findOne({ email })
+        const existente = await Usuario.findOne(filtroEmail(email))
 
         if (existente) {
 
@@ -129,43 +142,44 @@ async function ativarConta(req, res) {
     }
 }
 
+
 async function login(req, res) {
     try {
         const { senha } = req.body
         const email = (req.body.email || '').trim().toLowerCase()
-
+ 
         if (!email || !senha) {
             return res.status(400).json({
                 message: 'Email e senha são obrigatórios'
             })
         }
-
-        const user = await Usuario.findOne({ email })
-
+ 
+        const user = await Usuario.findOne(filtroEmail(email))
+ 
         if (!user) {
             return res.status(401).json({
                 message: 'Usuário não encontrado'
             })
         }
-
+ 
         if (user.status !== 'ACTIVE') {
             if (user.status === 'PENDING') {
                 await reenviarEmailAprovacaoSeNecessario(user)
             }
-
+ 
             return res.status(403).json({
                 message: 'Conta não ativada. Pendente de aprovação pelo administrador.'
             })
         }
-
+ 
         const senhaOk = await bcrypt.compare(senha, user.senha)
-
+ 
         if (!senhaOk) {
             return res.status(401).json({
                 message: 'Senha inválida'
             })
         }
-
+ 
         const token = jwt.sign(
             {
                 id: user._id,
@@ -175,7 +189,7 @@ async function login(req, res) {
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         )
-
+ 
         return res.json({
             message: 'Login realizado com sucesso',
             token,
@@ -185,10 +199,10 @@ async function login(req, res) {
                 email: user.email
             }
         })
-
+ 
     } catch (error) {
         console.error(error)
-
+ 
         return res.status(500).json({
             message: 'Erro no login'
         })
@@ -199,7 +213,7 @@ async function esqueciSenha(req, res) {
     try {
         const email = (req.body.email || '').trim().toLowerCase()
 
-        const user = await Usuario.findOne({ email })
+        const user = await Usuario.findOne(filtroEmail(email))
 
         if (!user) {
             return res.status(400).json({
@@ -343,7 +357,7 @@ async function validarEmail(req, res) {
             })
         }
 
-        const usuario = await Usuario.findOne({ email })
+        const usuario = await Usuario.findOne(filtroEmail(email))
 
         if (!usuario) {
             return res.json({
