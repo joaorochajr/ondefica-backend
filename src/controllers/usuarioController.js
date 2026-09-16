@@ -351,28 +351,30 @@ async function validarTokenReset(req, res) {
 async function validarEmail(req, res) {
     try {
         const email = decodificarEmailDaUrl(req.params.email).trim().toLowerCase()
- 
+
         if (!email) {
             return res.status(400).json({
                 message: 'Email é obrigatório'
             })
         }
- 
+
         const usuario = await Usuario.findOne(filtroEmail(email))
- 
+
         if (!usuario) {
             return res.json({
                 existe: false,
+                ativo: false,
             })
         }
- 
+
         return res.json({
             existe: true,
+            ativo: usuario.status === 'ACTIVE',
         })
- 
+
     } catch (error) {
         console.error(error)
- 
+
         return res.status(500).json({
             message: 'Erro ao validar email'
         })
