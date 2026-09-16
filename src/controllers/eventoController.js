@@ -16,18 +16,21 @@ async function criarEvento(req, res) {
 
         // Lógica de Colaboradores
         if (colaboradores && colaboradores.length > 0) {
+            // Normaliza os e-mails recebidos (evita falha por maiúsculas/espaços)
+            const colaboradoresNormalizados = colaboradores
+                .map(email => (email || '').trim().toLowerCase());
+ 
             // Busca no banco os usuários que têm os e-mails enviados
-            const usuariosDb = await Usuario.find({ email: { $in: colaboradores } });
+            const usuariosDb = await Usuario.find({ email: { $in: colaboradoresNormalizados } });
             const emailsDb = usuariosDb.map(u => u.email);
-
+ 
             // Separa quem não foi encontrado
-            emailsNaoEncontrados = colaboradores.filter(email => !emailsDb.includes(email));
-
+            emailsNaoEncontrados = colaboradoresNormalizados.filter(email => !emailsDb.includes(email));
+ 
             // Junta o ID do criador com os IDs dos colaboradores encontrados (sem repetir)
             const idsColaboradores = usuariosDb.map(u => u._id.toString());
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
         }
-
 
         const eventoDuplicado = await Evento.findOne({
             descricao: descricao,
@@ -129,12 +132,15 @@ async function atualizarEvento(req, res) {
         let administradoresIds = [req.user.id];
         let emailsNaoEncontrados = [];
 
-        if (colaboradores && colaboradores.length > 0) {
-            const usuariosDb = await Usuario.find({ email: { $in: colaboradores } });
+       if (colaboradores && colaboradores.length > 0) {
+            const colaboradoresNormalizados = colaboradores
+                .map(email => (email || '').trim().toLowerCase());
+ 
+            const usuariosDb = await Usuario.find({ email: { $in: colaboradoresNormalizados } });
             const emailsDb = usuariosDb.map(u => u.email);
-
-            emailsNaoEncontrados = colaboradores.filter(email => !emailsDb.includes(email));
-
+ 
+            emailsNaoEncontrados = colaboradoresNormalizados.filter(email => !emailsDb.includes(email));
+ 
             const idsColaboradores = usuariosDb.map(u => u._id.toString());
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
         }
