@@ -350,7 +350,7 @@ async function validarTokenReset(req, res) {
 
 async function validarEmail(req, res) {
     try {
-        const email = decodificarEmailDaUrl(req.params.email).trim().toLowerCase()
+        const email = decodeURIComponent(req.params.email).trim().toLowerCase()
 
         if (!email) {
             return res.status(400).json({
@@ -363,13 +363,13 @@ async function validarEmail(req, res) {
         if (!usuario) {
             return res.json({
                 existe: false,
-                ativo: false,
+                ativo: false
             })
         }
 
         return res.json({
             existe: true,
-            ativo: usuario.status === 'ACTIVE',
+            ativo: usuario.status === 'ACTIVE'
         })
 
     } catch (error) {
