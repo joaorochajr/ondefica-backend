@@ -2,6 +2,17 @@ const Evento = require('../models/Evento');
 const Usuario = require('../models/Usuario');
 const Stand = require('../models/Stand')
 
+// Escapa caracteres especiais de regex (o e-mail pode ter '.', '+', etc.)
+function escaparRegex(texto) {
+    return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Monta os regex de e-mail (case-insensitive) usados no $in, pra achar
+// colaboradores mesmo que o e-mail deles esteja salvo com grafia diferente
+function paraRegexEmails(emails) {
+    return emails.map(email => new RegExp(`^${escaparRegex((email || '').trim())}$`, 'i'))
+}
+
 async function criarEvento(req, res) {
     try {
         if (!req.user) {
@@ -20,9 +31,10 @@ async function criarEvento(req, res) {
             const colaboradoresNormalizados = colaboradores
                 .map(email => (email || '').trim().toLowerCase());
  
-            // Busca no banco os usuários que têm os e-mails enviados
-            const usuariosDb = await Usuario.find({ email: { $in: colaboradoresNormalizados } });
-            const emailsDb = usuariosDb.map(u => u.email);
+            // Busca no banco de forma case-insensitive, então acha o usuário
+            // mesmo que o e-mail dele esteja salvo com outra grafia
+            const usuariosDb = await Usuario.find({ email: { $in: paraRegexEmails(colaboradoresNormalizados) } });
+            const emailsDb = usuariosDb.map(u => u.email.trim().toLowerCase());
  
             // Separa quem não foi encontrado
             emailsNaoEncontrados = colaboradoresNormalizados.filter(email => !emailsDb.includes(email));
@@ -136,8 +148,8 @@ async function atualizarEvento(req, res) {
             const colaboradoresNormalizados = colaboradores
                 .map(email => (email || '').trim().toLowerCase());
  
-            const usuariosDb = await Usuario.find({ email: { $in: colaboradoresNormalizados } });
-            const emailsDb = usuariosDb.map(u => u.email);
+            const usuariosDb = await Usuario.find({ email: { $in: paraRegexEmails(colaboradoresNormalizados) } });
+            const emailsDb = usuariosDb.map(u => u.email.trim().toLowerCase());
  
             emailsNaoEncontrados = colaboradoresNormalizados.filter(email => !emailsDb.includes(email));
  
