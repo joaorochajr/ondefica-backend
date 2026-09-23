@@ -1,5 +1,6 @@
 const express = require('express');
 const auth = require('../../middlewares/auth')
+const { cacheRota } = require('../utils/cache')
 
 const router = express.Router();
 
@@ -14,11 +15,11 @@ const {
 
 router.post('/', auth, criarEvento);
 
-router.get('/', listarEventos);
+router.get('/', cacheRota(30), listarEventos);
 
 router.get('/meus', auth, listarMeusEventos);
 
-router.get('/:id', buscarEventoPorId);
+router.get('/:id', cacheRota(30), buscarEventoPorId);
 
 router.put('/:id', auth, atualizarEvento);
 
