@@ -13,13 +13,27 @@ function paraRegexEmails(emails) {
     return emails.map(email => new RegExp(`^${escaparRegex((email || '').trim())}$`, 'i'))
 }
 
+const FUSO_HORARIO = 'America/Sao_Paulo'
+
+function inicioDoDiaDeHoje() {
+    const hoje = new Intl.DateTimeFormat('en-CA', {
+        timeZone: FUSO_HORARIO,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date()) // formato 'YYYY-MM-DD'
+
+    return new Date(`${hoje}T00:00:00.000Z`)
+}
+
+
 async function criarEvento(req, res) {
     try {
         if (!req.user) {
             return res.status(401).json({ message: 'Não autenticado' });
         }
 
-        const { descricao, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
+        const { descricao, nome_local, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
 
         // O criador sempre será um administrador
         let administradoresIds = [req.user.id];
@@ -55,7 +69,7 @@ async function criarEvento(req, res) {
             });
         }
         const novoEvento = await Evento.create({
-            descricao, data_inicio, data_fim, latitude, longitude,
+            descricao, nome_local, data_inicio, data_fim, latitude, longitude,
             administradores: administradoresIds
         });
 
@@ -73,10 +87,9 @@ async function criarEvento(req, res) {
 
 async function listarEventos(req, res) {
     try {
-        const dataAtual = new Date();
 
         const eventos = await Evento.find({
-            data_fim: { $gte: dataAtual }
+            data_fim: { $gte: inicioDoDiaDeHoje() }
         }).lean();
 
         const contagemStands = await Stand.aggregate([
@@ -131,7 +144,7 @@ async function atualizarEvento(req, res) {
     try {
         if (!req.user) return res.status(401).json({ message: 'Não autenticado' });
 
-        const { descricao, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
+        const { descricao, nome_local, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
 
         const eventoExistente = await Evento.findById(req.params.id);
         if (!eventoExistente) return res.status(404).json({ message: 'Evento não encontrado' });
@@ -170,9 +183,9 @@ async function atualizarEvento(req, res) {
         }
 
         const eventoAtualizado = await Evento.findByIdAndUpdate(
-            req.params.id,
-            { descricao, data_inicio, data_fim, latitude, longitude, administradores: administradoresIds },
-            { new: true }
+             req.params.id,
+            { descricao, nome_local, data_inicio, data_fim, latitude, longitude, administradores: administradoresIds },
+            { new: true, runValidators: true }
         );
 
         return res.json({
