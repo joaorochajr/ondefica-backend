@@ -5,6 +5,11 @@ const EventoSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+        nome_local: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     data_inicio: { 
         type: Date, 
         required: true 
