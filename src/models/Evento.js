@@ -10,6 +10,11 @@ const EventoSchema = new mongoose.Schema({
         trim: true,
         default: ''
     },
+        nome_endereco: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     data_inicio: { 
         type: Date, 
         required: true 
