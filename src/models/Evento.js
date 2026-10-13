@@ -1,44 +1,47 @@
 const mongoose = require('mongoose')
 
 const EventoSchema = new mongoose.Schema({
-    descricao: { 
-        type: String, 
-        required: true 
+    descricao: {
+        type: String,
+        required: true,
+        trim: true
     },
-        nome_local: {
+    nome_local: {
         type: String,
         trim: true,
         default: ''
     },
-        nome_endereco: {
+    nome_endereco: {
         type: String,
         trim: true,
         default: ''
     },
-    data_inicio: { 
-        type: Date, 
-        required: true 
+    data_inicio: {
+        type: Date,
+        required: true
     },
-    data_fim: { 
-        type: Date, 
-        required: true 
+    data_fim: {
+        type: Date,
+        required: true
     },
-    latitude: { 
-        type: Number, 
-        required: true 
+    latitude: {
+        type: Number,
+        required: true,
+        min: -90,
+        max: 90
     },
-    longitude: { 
-        type: Number, 
-        required: true 
+    longitude: {
+        type: Number,
+        required: true,
+        min: -180,
+        max: 180
     },
-    // Este array substitui a antiga tabela SQL "Evento_Administrador"
     administradores: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Usuario' // Faz a ligação com o model de Usuário
+        ref: 'Usuario'
     }]
 }, {
-    // Adiciona automaticamente os campos createdAt e updatedAt
-    timestamps: true 
+    timestamps: true
 })
 
 module.exports = mongoose.model('Evento', EventoSchema)
