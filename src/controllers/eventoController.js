@@ -33,7 +33,7 @@ async function criarEvento(req, res) {
             return res.status(401).json({ message: 'Não autenticado' });
         }
 
-        const { descricao, nome_local, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
+        const { descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
 
         // O criador sempre será um administrador
         let administradoresIds = [req.user.id];
@@ -69,7 +69,7 @@ async function criarEvento(req, res) {
             });
         }
         const novoEvento = await Evento.create({
-            descricao, nome_local, data_inicio, data_fim, latitude, longitude,
+            descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude,
             administradores: administradoresIds
         });
 
@@ -144,7 +144,7 @@ async function atualizarEvento(req, res) {
     try {
         if (!req.user) return res.status(401).json({ message: 'Não autenticado' });
 
-        const { descricao, nome_local, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
+        const { descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
 
         const eventoExistente = await Evento.findById(req.params.id);
         if (!eventoExistente) return res.status(404).json({ message: 'Evento não encontrado' });
@@ -184,7 +184,7 @@ async function atualizarEvento(req, res) {
 
         const eventoAtualizado = await Evento.findByIdAndUpdate(
              req.params.id,
-            { descricao, nome_local, data_inicio, data_fim, latitude, longitude, administradores: administradoresIds },
+            { descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude, administradores: administradoresIds },
             { new: true, runValidators: true }
         );
 
