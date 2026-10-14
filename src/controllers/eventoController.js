@@ -32,9 +32,8 @@ async function criarEvento(req, res) {
         if (!req.user) {
             return res.status(401).json({ message: 'Não autenticado' });
         }
-
-        const { descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude, colaboradores } = req.body;
-
+        //ler o novo campo
+        const { descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude, colaboradores, copiarStandsDe } = req.body;
         // O criador sempre será um administrador
         let administradoresIds = [req.user.id];
         let emailsNaoEncontrados = [];
@@ -68,15 +67,49 @@ async function criarEvento(req, res) {
                 message: 'Você já possui um evento cadastrado com este nome.' 
             });
         }
+
+        // validar o evento de origem: Se o usuário pediu para copiar os stands de outro evento, valida a origem
+        let eventoOrigem = null
+        if (copiarStandsDe) {
+            eventoOrigem = await Evento.findById(copiarStandsDe)
+            if (!eventoOrigem) {
+                return res.status(404).json({ message: 'Evento de origem não encontrado' })
+            }
+            const souAdmin = eventoOrigem.administradores.some(a => a.toString() === req.user.id)
+            if (!souAdmin) {
+                return res.status(403).json({ message: 'Sem permissão para copiar stands deste evento' })
+            }
+        }
+
         const novoEvento = await Evento.create({
             descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude,
             administradores: administradoresIds
         });
 
+        // copiar os stands: Copia os stands do evento de origem para o novo evento
+        let standsCopiados = 0
+        if (eventoOrigem) {
+            // Mantém o cronograma relativo: desloca as datas conforme a nova data de início
+            const deslocamento = new Date(data_inicio).getTime() - eventoOrigem.data_inicio.getTime()
+
+            const originais = await Stand.find({ eventoId: eventoOrigem._id }).lean()
+            const copias = originais.map(({ _id, createdAt, updatedAt, __v, ...resto }) => ({
+                ...resto, // nome, descricao, imagem, latitude, longitude, cor_icone
+                data_inicio: new Date(new Date(resto.data_inicio).getTime() + deslocamento),
+                data_fim: new Date(new Date(resto.data_fim).getTime() + deslocamento),
+                eventoId: novoEvento._id
+            }))
+
+            if (copias.length) await Stand.insertMany(copias)
+            standsCopiados = copias.length
+        }
+
+        //devolver a quantidade na resposta
         return res.status(201).json({
             message: 'Evento criado com sucesso',
             id: novoEvento._id,
-            emailsNaoEncontrados
+            emailsNaoEncontrados,
+            standsCopiados
         });
 
     } catch (error) {
