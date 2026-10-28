@@ -11,6 +11,7 @@ const {
     buscarEventoPorId,
     atualizarEvento,
     deletarEvento,
+    importarStandsParaEvento,
 } = require('../controllers/eventoController');
 
 router.post('/', auth, criarEvento);
@@ -22,6 +23,8 @@ router.get('/meus', auth, listarMeusEventos);
 router.get('/:id', cacheRota(600), buscarEventoPorId);
 
 router.put('/:id', auth, atualizarEvento);
+
+router.post('/:id/importar-stands', auth, importarStandsParaEvento);
 
 router.delete('/:id', auth, deletarEvento);
 

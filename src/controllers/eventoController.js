@@ -252,6 +252,73 @@ async function listarMeusEventos(req, res) {
     }
 }
 
+// POST /eventos/:id/importar-stands   body: { origemId }
+async function importarStandsParaEvento(req, res) {
+    try {
+        if (!req.user) return res.status(401).json({ message: 'Não autenticado' })
+
+        const { origemId } = req.body
+        if (!origemId) {
+            return res.status(400).json({ message: 'Informe o evento de origem' })
+        }
+        if (origemId === req.params.id) {
+            return res.status(400).json({ message: 'Escolha um evento diferente deste' })
+        }
+
+        const [destino, origem] = await Promise.all([
+            Evento.findById(req.params.id),
+            Evento.findById(origemId)
+        ])
+        if (!destino || !origem) {
+            return res.status(404).json({ message: 'Evento não encontrado' })
+        }
+
+        const ehAdmin = (evento) => evento.administradores.some(a => a.toString() === req.user.id)
+        if (!ehAdmin(destino) || !ehAdmin(origem)) {
+            return res.status(403).json({ message: 'Sem permissão para importar stands entre estes eventos' })
+        }
+
+        // Nomes que já existem no evento atual (não pode duplicar)
+        const existentes = await Stand.find({ eventoId: destino._id }).select('nome').lean()
+        const nomes = new Set(existentes.map(s => s.nome.trim().toLowerCase()))
+
+        const originais = await Stand.find({
+            eventoId: origem._id,
+            nome: { $ne: 'Centro do evento' }
+        }).lean()
+
+        const deslocamento = destino.data_inicio.getTime() - origem.data_inicio.getTime()
+
+        const copias = []
+        let ignorados = 0
+        for (const { _id, createdAt, updatedAt, __v, ...resto } of originais) {
+            const chave = resto.nome.trim().toLowerCase()
+            if (nomes.has(chave)) {
+                ignorados++
+                continue
+            }
+            nomes.add(chave)
+            copias.push({
+                ...resto,
+                data_inicio: new Date(new Date(resto.data_inicio).getTime() + deslocamento),
+                data_fim: new Date(new Date(resto.data_fim).getTime() + deslocamento),
+                eventoId: destino._id
+            })
+        }
+
+        if (copias.length) await Stand.insertMany(copias)
+
+        return res.json({
+            message: 'Importação concluída',
+            importados: copias.length,
+            ignorados
+        })
+    } catch (error) {
+        console.error(error)
+        return res.status(500).json({ message: 'Erro ao importar stands' })
+    }
+}
+
 async function deletarEvento(req, res) {
     try {
         const { id } = req.params
@@ -269,5 +336,6 @@ module.exports = {
     buscarEventoPorId,
     atualizarEvento,
     deletarEvento,
-    listarMeusEventos
+    listarMeusEventos,
+    importarStandsParaEvento
 };
