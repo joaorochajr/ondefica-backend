@@ -118,12 +118,59 @@ async function criarEvento(req, res) {
     }
 }
 
+// Confere se o texto está no formato AAAA-MM-DD e é uma data de verdade
+function dataValida(texto) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) return false
+    const data = new Date(`${texto}T00:00:00.000Z`)
+    return !isNaN(data.getTime()) && data.toISOString().startsWith(texto)
+}
+
+// GET /eventos
+// Filtros opcionais (query):
+//   situacao = 'proximos' (padrão) | 'passados' | 'todos'
+//   de, ate  = período no formato AAAA-MM-DD
+// Um evento entra no período se ele acontece em algum dia entre "de" e "ate".
 async function listarEventos(req, res) {
     try {
+        const situacao = req.query.situacao || 'proximos'
+        const { de, ate } = req.query
 
-        const eventos = await Evento.find({
-            data_fim: { $gte: inicioDoDiaDeHoje() }
-        }).lean();
+        if (!['proximos', 'passados', 'todos'].includes(situacao)) {
+            return res.status(400).json({ message: 'Situação inválida. Use proximos, passados ou todos.' })
+        }
+        if ((de && !dataValida(de)) || (ate && !dataValida(ate))) {
+            return res.status(400).json({ message: 'Datas devem estar no formato AAAA-MM-DD.' })
+        }
+        if (de && ate && de > ate) {
+            return res.status(400).json({ message: 'A data inicial não pode ser depois da data final.' })
+        }
+
+        const hoje = inicioDoDiaDeHoje()
+        const condicoes = []
+
+        if (situacao === 'proximos') {
+            condicoes.push({ data_fim: { $gte: hoje } })
+        }
+        if (situacao === 'passados') {
+            condicoes.push({ data_fim: { $lt: hoje } })
+        }
+        if (de) {
+            // o evento ainda não tinha terminado no começo do período
+            condicoes.push({ data_fim: { $gte: new Date(`${de}T00:00:00.000Z`) } })
+        }
+        if (ate) {
+            // o evento já tinha começado até o fim do período
+            condicoes.push({ data_inicio: { $lte: new Date(`${ate}T23:59:59.999Z`) } })
+        }
+
+        const filtro = condicoes.length > 0 ? { $and: condicoes } : {}
+
+        // Passados: mais recentes primeiro. Demais: os mais próximos primeiro.
+        const ordem = situacao === 'passados' ? -1 : 1
+
+        const eventos = await Evento.find(filtro)
+            .sort({ data_inicio: ordem })
+            .lean();
 
         const contagemStands = await Stand.aggregate([
             {
