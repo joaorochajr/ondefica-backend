@@ -229,41 +229,54 @@ async function atualizarEvento(req, res) {
         const eventoExistente = await Evento.findById(req.params.id);
         if (!eventoExistente) return res.status(404).json({ message: 'Evento não encontrado' });
 
-        // Apenas um admin pode editar
-        if (!eventoExistente.administradores.includes(req.user.id)) {
+        const ehAdmin = eventoExistente.administradores.some(a => a.toString() === req.user.id);
+        const ehSuper = req.ehSuperuser === true;
+
+        // Apenas administrador do evento ou superusuário pode editar
+        if (!ehAdmin && !ehSuper) {
             return res.status(403).json({ message: 'Sem permissão para editar este evento' });
         }
 
-        let administradoresIds = [req.user.id];
-        let emailsNaoEncontrados = [];
+        // Superusuário editando evento de outra pessoa: não assume a administração,
+        // os administradores originais continuam
+        const superDeFora = ehSuper && !ehAdmin;
 
-       if (colaboradores && colaboradores.length > 0) {
+        let administradoresIds = superDeFora ? [] : [req.user.id];
+
+        if (colaboradores && colaboradores.length > 0) {
             const colaboradoresNormalizados = colaboradores
                 .map(email => (email || '').trim().toLowerCase());
- 
+
             const usuariosDb = await Usuario.find({ email: { $in: paraRegexEmails(colaboradoresNormalizados) } });
             const emailsDb = usuariosDb.map(u => u.email.trim().toLowerCase());
- 
+
             emailsNaoEncontrados = colaboradoresNormalizados.filter(email => !emailsDb.includes(email));
- 
+
             const idsColaboradores = usuariosDb.map(u => u._id.toString());
             administradoresIds = [...new Set([...administradoresIds, ...idsColaboradores])];
+
+            // O evento nunca pode ficar sem administrador
+            if (superDeFora && administradoresIds.length === 0) {
+                administradoresIds = eventoExistente.administradores.map(a => a.toString());
+            }
         }
 
+        // Checa duplicidade de nome entre os eventos dos donos do evento
+        const donos = superDeFora ? eventoExistente.administradores : [req.user.id];
         const eventoDuplicado = await Evento.findOne({
             descricao: descricao,
-            administradores: req.user.id,
+            administradores: { $in: donos },
             _id: { $ne: req.params.id }
         });
 
         if (eventoDuplicado) {
-            return res.status(409).json({ 
-                message: 'Você já possui um evento cadastrado com este nome.' 
+            return res.status(409).json({
+                message: 'Já existe um evento cadastrado com este nome.'
             });
         }
 
-        const eventoAtualizado = await Evento.findByIdAndUpdate(
-             req.params.id,
+        await Evento.findByIdAndUpdate(
+            req.params.id,
             { descricao, nome_local, nome_endereco, data_inicio, data_fim, latitude, longitude, administradores: administradoresIds },
             { new: true, runValidators: true }
         );
@@ -321,7 +334,7 @@ async function importarStandsParaEvento(req, res) {
         }
 
         const ehAdmin = (evento) => evento.administradores.some(a => a.toString() === req.user.id)
-        if (!ehAdmin(destino) || !ehAdmin(origem)) {
+        if ((!ehAdmin(destino) && req.ehSuperuser !== true) || !ehAdmin(origem)) {
             return res.status(403).json({ message: 'Sem permissão para importar stands entre estes eventos' })
         }
 
@@ -368,9 +381,19 @@ async function importarStandsParaEvento(req, res) {
 
 async function deletarEvento(req, res) {
     try {
-        const { id } = req.params
-        await Evento.findByIdAndDelete(id)
+        if (!req.user) return res.status(401).json({ message: 'Não autenticado' })
+
+        const evento = await Evento.findById(req.params.id)
+        if (!evento) return res.status(404).json({ message: 'Evento não encontrado' })
+
+        const ehAdmin = evento.administradores.some(a => a.toString() === req.user.id)
+        if (!ehAdmin && req.ehSuperuser !== true) {
+            return res.status(403).json({ message: 'Sem permissão para apagar este evento' })
+        }
+
+        await Evento.findByIdAndDelete(req.params.id)
         res.json({ message: 'Evento deletado com sucesso' })
+        await Stand.deleteMany({ eventoId: req.params.id })
     } catch (error) {
         console.error(error)
         res.status(500).json({ error: 'Erro ao deletar evento' })

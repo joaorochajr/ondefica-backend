@@ -10,6 +10,12 @@ const UsuarioSchema = new mongoose.Schema({
     },
     senha: String,
 
+    role: {
+        type: String,
+        enum: ['user', 'superuser'],
+        default: 'user'
+    },
+
     token_ativacao: String,
     token_ativacao_expira: Date,
     reset_token: String,

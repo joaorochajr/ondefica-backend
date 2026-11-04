@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 
+const adminUsuarioRoutes = require('./routes/adminUsuarioRoutes')
+const adminEventoRoutes = require('./routes/adminEventoRoutes')
 const eventoRoutes = require('./routes/eventoRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes')
 const standRoutes = require('./routes/standRoutes')
@@ -44,5 +46,7 @@ app.get('/', (req, res) => {
 app.use('/eventos', eventoRoutes);
 app.use('/usuarios', usuarioRoutes)
 app.use('/stands', standRoutes)
+app.use('/admin/eventos', adminEventoRoutes)
+app.use('/admin/usuarios', adminUsuarioRoutes)
 
 module.exports = app;

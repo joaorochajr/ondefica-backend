@@ -1,6 +1,10 @@
+import { marcarSuperuser } from '../../middlewares/superuser';
+
 const express = require('express');
 const auth = require('../../middlewares/auth')
 const { cacheRota } = require('../utils/cache')
+const auth = require('../../middlewares/auth')
+const { marcarSuperuser } = require('../../middlewares/superuser')
 
 const router = express.Router();
 
@@ -22,10 +26,12 @@ router.get('/meus', auth, listarMeusEventos);
 
 router.get('/:id', cacheRota(600), buscarEventoPorId);
 
-router.put('/:id', auth, atualizarEvento);
+router.put('/:id', auth,marcarSuperuser, atualizarEvento);
 
 router.post('/:id/importar-stands', auth, importarStandsParaEvento);
 
-router.delete('/:id', auth, deletarEvento);
+router.post('/:id/importar-stands', auth, marcarSuperuser, importarStandsParaEvento);
+
+router.delete('/:id', auth, marcarSuperuser, deletarEvento);
 
 module.exports = router;
