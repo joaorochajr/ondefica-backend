@@ -13,21 +13,28 @@ const app = express();
 
 app.set('trust proxy', 1)
 
-app.use(cors({
-    origin: function (origin, callback) {
-        const allowedOrigins = [
-            'http://localhost:5173',
-            process.env.FRONTEND_URL
-        ]
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://ondefica.akare.com.br',
+    ...(process.env.FRONTEND_URL || '').split(',')
+].map(o => o.trim().replace(/\/$/, '')).filter(Boolean)
 
+const corsOptions = {
+    origin: function (origin, callback) {
+        // sem origin = Postman/curl/server-to-server
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true)
         } else {
-            callback(new Error('Not allowed by CORS'))
+            // não lançar Error: false apenas omite os headers CORS
+            callback(null, false)
         }
     },
-    credentials: true
-}))
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}
+
+app.use(cors(corsOptions))
 
 app.use(express.json());
 app.use(invalidarAoEscrever)
