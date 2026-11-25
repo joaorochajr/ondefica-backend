@@ -172,6 +172,16 @@ async function login(req, res) {
             })
         }
  
+        if (!user.senha) {
+            console.error('Login: usuário sem senha cadastrada:', user.email)
+            return res.status(401).json({ message: 'Senha inválida' })
+        }
+
+        if (!process.env.JWT_SECRET) {
+            console.error('Login: variável JWT_SECRET não configurada no servidor')
+            return res.status(500).json({ message: 'Servidor mal configurado (JWT_SECRET ausente)' })
+        }
+
         const senhaOk = await bcrypt.compare(senha, user.senha)
  
         if (!senhaOk) {
